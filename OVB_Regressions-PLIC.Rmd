@@ -1,0 +1,64 @@
+**Import necessary libraries**
+```{r}
+library(data.table)
+library(dplyr)
+library(mice)
+library(miceadds)
+library(mitml)
+```
+
+**Load data and relevel factors**
+```{r}
+df <- fread('C:/Users/Cole/Documents/GRA_Summer2019/MasterDiagnosticDataConstruction/MasterData.csv')
+df.PLIC <- df[Assessment == 'PLIC' & (!is.na(PreScores) | !is.na(PostScores))] %>%
+  select(Class_Standing, Gender, URM_Status, First_Gen_Status, AP_Calculus_AB, AP_Calculus_BC, ACT_SAT_Math_Percentile, PreScores, PostScores, Season, Sequence, Course_Content, Class) %>%
+  mutate(Class_Standing = relevel(as.factor(case_when(
+    Class_Standing == 'Fresh' ~ 'FY',
+    Class_Standing == 'Sophomore' | Class_Standing == 'Junior' | Class_Standing == 'Senior' ~ 'BFY',
+    TRUE ~ NA_character_
+  )), ref = 'FY'),
+  Gender = relevel(as.factor(Gender), ref = 'M'),
+  URM_Status = relevel(as.factor(URM_Status), ref = 'Majority'),
+  First_Gen_Status = relevel(as.factor(First_Gen_Status), ref = 'ContGen'),
+  AP_Calculus_AB = relevel(as.factor(AP_Calculus_AB), ref = 'NotTaken'),
+  AP_Calculus_BC = relevel(as.factor(AP_Calculus_BC), ref = 'NotTaken'),
+  Season = relevel(as.factor(Season), ref = 'FA'),
+  Sequence = relevel(as.factor(Sequence), ref = 'Engineering'),
+  Course_Content = relevel(as.factor(Course_Content), ref = 'Mechanics'),
+  Class = as.factor(Class)) %>%
+  filter(!is.na(URM_Status) & !is.na(Class_Standing) & !is.na(ACT_SAT_Math_Percentile))
+
+levels(df.PLIC$Class) <- 1:length(levels(df.PLIC$Class))
+df.PLIC$Class <- as.numeric(df.PLIC$Class)
+```
+
+**Impute pre and post surveys**
+```{r}
+str(df.PLIC)
+md.pattern(df.PLIC)
+
+Frac.Missing <- round(sum(is.na(df.PLIC$PreScores) | is.na(df.PLIC$PostScores))/nrow(df.PLIC) * 100)
+Frac.Missing
+
+ini <- mice(df.PLIC, maxit = 0)
+predM <- ini$predictorMatrix
+iniM <- ini$method
+iniM
+
+predM[, 'Class'] <- -2
+iniM <- c('', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '')
+
+set.seed(11)
+imp.dat <- mice(df.PLIC, m = Frac.Missing, pred = predM, met = iniM)
+mitml.dat <- mids2mitml.list(imp.dat)
+```
+
+**Do fits!!!**
+```{r}
+fit0 <- with(imp.dat, lme4::lmer(PostScores ~ (1 | Class)))
+summary(pool(fit0))
+
+fit1a <- with(imp.dat, lme4::lmer(PostScores ~ Gender + (1 | Class)))
+summary(pool(fit1a))
+```
+
