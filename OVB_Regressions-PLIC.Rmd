@@ -105,7 +105,7 @@ Do.Regressions(df.ECLASS, assessment = 'ECLASS')
 
 **MBT Regressions**
 ```{r}
-df.MBT <- Load.Clean.Data(assessment = 'MBT')
+df.MBT <- Load.Clean.Data(assessment = 'MBT')a
 
 Do.Regressions(df.MBT, assessment = 'MBT')
 ```
