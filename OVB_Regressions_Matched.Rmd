@@ -1,0 +1,112 @@
+**Import necessary libraries**
+```{r}
+library(data.table)
+library(dplyr)
+library(lmerTest)
+library(MuMIn)
+```
+
+**Load data and relevel factors function**
+```{r}
+Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/MasterDiagnosticDataConstruction/MasterData.csv',
+                            assessment) {
+  df <- fread(File)
+  df.assessment <- df[Assessment == assessment & (!is.na(PreScores) & !is.na(PostScores))] %>%
+    select(Class_Standing, Gender, URM_Status, First_Gen_Status, AP_Calculus_AB, AP_Calculus_BC, ACT_SAT_Math_Percentile, PreScores, PostScores, Season, Sequence, Course_Content, Class) %>%
+    mutate(Class_Standing = relevel(as.factor(case_when(
+      Class_Standing == 'Fresh' ~ 'FY',
+      Class_Standing == 'Sophomore' | Class_Standing == 'Junior' | Class_Standing == 'Senior' ~ 'BFY',
+      TRUE ~ NA_character_
+    )), ref = 'FY'),
+    Gender = relevel(as.factor(Gender), ref = 'M'),
+    URM_Status = relevel(as.factor(URM_Status), ref = 'Majority'),
+    First_Gen_Status = relevel(as.factor(First_Gen_Status), ref = 'ContGen'),
+    AP_Calculus_AB = relevel(as.factor(AP_Calculus_AB), ref = 'NotTaken'),
+    AP_Calculus_BC = relevel(as.factor(AP_Calculus_BC), ref = 'NotTaken'),
+    Season = relevel(as.factor(Season), ref = 'FA'),
+    Sequence = relevel(as.factor(Sequence), ref = 'Engineering'),
+    Course_Content = as.factor(Course_Content),
+    Class = as.factor(Class),
+    ACT_SAT_Math_Percentile = c(scale(ACT_SAT_Math_Percentile, scale = TRUE)),
+    PreScores = c(scale(PreScores, scale = TRUE)),
+    PostScores = c(scale(PostScores, scale = TRUE))) %>%
+    filter(!is.na(URM_Status) & !is.na(Class_Standing) & !is.na(ACT_SAT_Math_Percentile))
+  
+  return(df.assessment)
+                            }
+
+
+```
+
+**Fits function**
+```{r}
+Do.Regressions <- function(dat, assessment) {
+  fit0 <- lmer(PostScores ~ (1 | Class), dat)
+  print(summary(fit0))
+  print(r.squaredGLMM(fit0))
+  
+  fit1a <- lmer(PostScores ~ Gender + (1 | Class), dat)
+  print(summary(fit1a))
+  print(r.squaredGLMM(fit1a))
+  
+  fit1b <- lmer(PostScores ~ URM_Status + (1 | Class), dat)
+  print(summary(fit1b))
+  print(r.squaredGLMM(fit1b))
+  
+  fit1c <- lmer(PostScores ~ Class_Standing + (1 | Class), dat)
+  print(summary(fit1c))
+  print(r.squaredGLMM(fit1c))
+  
+  fit1d <- lmer(PostScores ~ First_Gen_Status + (1 | Class), dat)
+  print(summary(fit1d))
+  print(r.squaredGLMM(fit1d))
+  
+  fit1 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + (1 | Class), dat)
+  print(summary(fit1))
+  print(r.squaredGLMM(fit1))
+  
+  fit2 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + (1 | Class), dat)
+  print(summary(fit2))
+  print(r.squaredGLMM(fit2))
+  
+  fit3 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + (1 | Class), dat)
+  print(summary(fit3))
+  print(r.squaredGLMM(fit3))
+  
+  if(assessment == 'PLIC' | assessment == 'ECLASS'){
+    fit4 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class), dat)
+  } else {
+    fit4 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class), dat)
+  }
+  print(summary(fit4))
+  print(r.squaredGLMM(fit4))
+}
+```
+
+**PLIC Regressions**
+```{r}
+df.PLIC <- Load.Clean.Data(assessment = 'PLIC')
+
+Do.Regressions(df.PLIC, assessment = 'PLIC')
+```
+
+**ECLASS Regressions**
+```{r}
+df.ECLASS <- Load.Clean.Data(assessment = 'ECLASS')
+
+Do.Regressions(df.ECLASS, assessment = 'ECLASS')
+```
+
+**MBT Regressions**
+```{r}
+df.MBT <- Load.Clean.Data(assessment = 'MBT')
+
+Do.Regressions(df.MBT, assessment = 'MBT')
+```
+
+**CSEM Regressions**
+```{r}
+df.CSEM <- Load.Clean.Data(assessment = 'CSEM')
+
+Do.Regressions(df.CSEM, assessment = 'CSEM')
+```
