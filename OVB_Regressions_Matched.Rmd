@@ -1,7 +1,7 @@
 **Import necessary libraries**
 ```{r}
 library(data.table)
-library(dplyr)
+library(tidyverse)
 library(lmerTest)
 library(MuMIn)
 library(stargazer)
@@ -110,6 +110,7 @@ df.PLIC.fit5 <-  Do.Regressions(df.PLIC, assessment = 'PLIC')
 
 plot(df.PLIC.fit5$model)
 
+boxplot(resid.abs.2 ~ Class, df.PLIC.fit5$dataframe)
 anova(lm(resid.abs.2 ~ Class, data = df.PLIC.fit5$dataframe))
 
 qqmath(df.PLIC.fit5$model)
@@ -123,6 +124,7 @@ df.ECLASS.fit5 <- Do.Regressions(df.ECLASS, assessment = 'ECLASS')
 
 plot(df.ECLASS.fit5$model)
 
+boxplot(resid.abs.2 ~ Class, df.ECLASS.fit5$dataframe)
 anova(lm(resid.abs.2 ~ Class, data = df.ECLASS.fit5$dataframe))
 
 qqmath(df.ECLASS.fit5$model)
@@ -136,6 +138,7 @@ df.MBT.fit5 <- Do.Regressions(df.MBT, assessment = 'MBT')
 
 plot(df.MBT.fit5$model)
 
+boxplot(resid.abs.2 ~ Class, df.MBT.fit5$dataframe)
 anova(lm(resid.abs.2 ~ Class, data = df.MBT.fit5$dataframe))
 
 qqmath(df.MBT.fit5$model)
@@ -149,6 +152,7 @@ df.CSEM.fit5 <- Do.Regressions(df.CSEM, assessment = 'CSEM')
 
 plot(df.CSEM.fit5$model)
 
+boxplot(resid.abs.2 ~ Class, df.CSEM.fit5$dataframe)
 anova(lm(resid.abs.2 ~ Class, data = df.CSEM.fit5$dataframe))
 
 qqmath(df.CSEM.fit5$model)
