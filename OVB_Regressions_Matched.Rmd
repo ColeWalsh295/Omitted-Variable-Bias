@@ -6,6 +6,7 @@ library(lmerTest)
 library(MuMIn)
 library(stargazer)
 library(lattice)
+library(simr)
 ```
 
 **Load data and relevel factors function**
@@ -157,3 +158,29 @@ anova(lm(resid.abs.2 ~ Class, data = df.CSEM.fit5$dataframe))
 
 qqmath(df.CSEM.fit5$model)
 ```
+
+**Simulated Power Analysis**
+```{r}
+Do.Simulated.Power <- function(model, var, fixed.eff, eff = -0.2, nsim = 1000){
+  fixef(model)[fixed.eff] <- eff
+  pow <- powerSim(model, test = fixed(var), progress = FALSE, nsim = nsim)
+  return(pow)
+}
+
+lapply(list(c('Gender', 'GenderF'), c('URM_Status', 'URM_StatusURM'), c('Class_Standing', 'Class_StandingBFY')), function (x) {
+  Do.Simulated.Power(model = df.PLIC.fit5$model, var = x[1], fixed.eff = x[2])
+  })
+
+lapply(list(c('Gender', 'GenderF'), c('URM_Status', 'URM_StatusURM'), c('Class_Standing', 'Class_StandingBFY'), c('First_Gen_Status', 'First_Gen_StatusFirstGen')), function (x) {
+  Do.Simulated.Power(model = df.ECLASS.fit5$model, var = x[1], fixed.eff = x[2])
+  })
+
+lapply(list(c('Gender', 'GenderF'), c('Class_Standing', 'Class_StandingBFY'), c('First_Gen_Status', 'First_Gen_StatusFirstGen')), function (x) {
+  Do.Simulated.Power(model = df.MBT.fit5$model, var = x[1], fixed.eff = x[2])
+  })
+
+lapply(list(c('URM_Status', 'URM_StatusURM'), c('First_Gen_Status', 'First_Gen_StatusFirstGen')), function (x) {
+  Do.Simulated.Power(model = df.CSEM.fit5$model, var = x[1], fixed.eff = x[2])
+  })
+```
+
