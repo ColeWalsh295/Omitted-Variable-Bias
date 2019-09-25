@@ -84,8 +84,8 @@ Do.Regressions <- function(dat, assessment) {
   print(summary(fit5))
   print(r.squaredGLMM(fit5))
   
-  print(summary(fit5))
-  print(r.squaredGLMM(fit5))
+  print(summary(fit6))
+  print(r.squaredGLMM(fit6))
   
   class(fit0) <- "lmerMod"
   class(fit1a) <- "lmerMod"
