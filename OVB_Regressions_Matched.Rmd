@@ -76,8 +76,10 @@ Do.Regressions <- function(dat, assessment) {
   
   if(assessment == 'PLIC' | assessment == 'ECLASS'){
     fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class), dat)
+    fit6 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + Season + Sequence + Course_Content + (1 | Class), dat)
   } else {
     fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class), dat)
+    fit6 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + Season + Sequence + (1 | Class), dat)
   }
   print(summary(fit5))
   print(r.squaredGLMM(fit5))
