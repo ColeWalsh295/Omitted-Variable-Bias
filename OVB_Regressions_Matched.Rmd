@@ -93,8 +93,9 @@ Do.Regressions <- function(dat, assessment) {
   class(fit3) <- "lmerMod"
   class(fit4) <- "lmerMod"
   class(fit5) <- "lmerMod"
+  class(fit6) <- "lmerMod"
   
-  stargazer(fit0, fit1a, fit1b, fit1c, fit1d, fit2, fit3, fit4, fit5, star.cutoffs = c(0.05, 0.01, 0.001), intercept.bottom = FALSE, out = paste(assessment, '.tex'), intercept.top = TRUE, omit.stat = 'all')
+  stargazer(fit0, fit1a, fit1b, fit1c, fit1d, fit2, fit3, fit4, fit5, fit6, star.cutoffs = c(0.05, 0.01, 0.001), intercept.bottom = FALSE, out = paste(assessment, '.tex'), intercept.top = TRUE, omit.stat = 'all')
   
   # dat$resid <- resid(fit5)
   # dat$resid.abs <- abs(dat$resid)
