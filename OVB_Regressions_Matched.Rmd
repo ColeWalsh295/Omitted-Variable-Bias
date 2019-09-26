@@ -75,7 +75,7 @@ Do.Regressions <- function(dat, assessment) {
   print(r.squaredGLMM(fit4))
   
   if(assessment == 'PLIC' | assessment == 'ECLASS'){
-    fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class), dat)
+    fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class), dat, na.action = "na.fail")
     fit6 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + Season + Sequence + Course_Content + (1 | Class), dat)
   } else {
     fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class), dat)
@@ -119,6 +119,12 @@ plot(df.PLIC.fit5$model, xlab = 'Fitted values', ylab = 'Residuals')
 
 # boxplot(resid.abs.2 ~ Class, df.PLIC.fit5$dataframe)
 # anova(lm(resid.abs.2 ~ Class, data = df.PLIC.fit5$dataframe))
+
+dat <- df.PLIC.fit5$dataframe
+
+All.PLIC <- dredge(df.PLIC.fit5$model, rank = 'AIC')
+
+summary(get.models(All.PLIC, subset = 1)[[1]])
 
 qqmath(df.PLIC.fit5$model)
 ```
