@@ -78,7 +78,7 @@ Do.Regressions <- function(dat, assessment) {
     fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class), dat, na.action = "na.fail")
     #fit6 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + Season + Sequence + Course_Content + (1 | Class), dat)
   } else {
-    fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class), dat)
+    fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class), dat, na.action = "na.fail")
     #fit6 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + Season + Sequence + (1 | Class), dat)
   }
   print(summary(fit5))
