@@ -2,6 +2,7 @@
 ```{r}
 library(data.table)
 library(tidyverse)
+library(broom)
 library(lmerTest)
 library(MuMIn)
 library(stargazer)
@@ -84,10 +85,10 @@ Do.Regressions <- function(dat, assessment) {
   print(summary(fit5))
   print(r.squaredGLMM(fit5))
   
-  fit6 <- get.models(dredge(fit5, rank = 'AIC'), subset = 1)[[1]]
+  #fit6 <- get.models(dredge(fit5, rank = 'AIC'), subset = 1)[[1]]
     
-  print(summary(fit6))
-  print(r.squaredGLMM(fit6))
+  #print(summary(fit6))
+  #print(r.squaredGLMM(fit6))
   
   class(fit0) <- "lmerMod"
   class(fit1a) <- "lmerMod"
@@ -98,16 +99,18 @@ Do.Regressions <- function(dat, assessment) {
   class(fit3) <- "lmerMod"
   class(fit4) <- "lmerMod"
   class(fit5) <- "lmerMod"
-  class(fit6) <- "lmerMod"
+  #class(fit6) <- "lmerMod"
   
-  stargazer(fit0, fit1a, fit1b, fit1c, fit1d, fit2, fit3, fit4, fit5, fit6, star.cutoffs = c(0.05, 0.01, 0.001), intercept.bottom = FALSE, out = paste(assessment, '.tex'), intercept.top = TRUE, omit.stat = 'all')
+  #stargazer(fit0, fit1a, fit1b, fit1c, fit1d, fit2, fit3, fit4, fit5, fit6, star.cutoffs = c(0.05, 0.01, 0.001), intercept.bottom = FALSE, out = paste(assessment, '.tex'), intercept.top = TRUE, omit.stat = 'all')
   
   # dat$resid <- resid(fit5)
   # dat$resid.abs <- abs(dat$resid)
   # dat$resid.abs.2 <- dat$resid.abs^2
   # dat$pred <- fitted(fit5)
   
-  return(list("model" = fit5, "dataframe" = dat))
+  Coefs.summary <- rbind(rbind(tidy(fit1a), tidy(fit1b), tidy(fit1c), tidy(fit1d)) %>% mutate(Model = 1), tidy(fit2) %>% mutate(Model = 2), tidy(fit3) %>% mutate(Model = 3), tidy(fit5) %>% mutate(Model = 5))
+  
+  return(list("model" = fit5, "dataframe" = dat, 'Coefs' = Coefs.summary))
 }
 ```
 
@@ -118,6 +121,8 @@ df.PLIC <- Load.Clean.Data(assessment = 'PLIC')
 df.PLIC.fit5 <-  Do.Regressions(df.PLIC, assessment = 'PLIC')
 
 plot(df.PLIC.fit5$model, xlab = 'Fitted values', ylab = 'Residuals')
+
+PLIC.Coefs <- df.PLIC.fit5$Coefs
 
 # boxplot(resid.abs.2 ~ Class, df.PLIC.fit5$dataframe)
 # anova(lm(resid.abs.2 ~ Class, data = df.PLIC.fit5$dataframe))
@@ -133,6 +138,8 @@ df.ECLASS.fit5 <- Do.Regressions(df.ECLASS, assessment = 'ECLASS')
 
 plot(df.ECLASS.fit5$model, xlab = 'Fitted values', ylab = 'Residuals')
 
+ECLASS.Coefs <- df.ECLASS.fit5$Coefs
+
 # boxplot(resid.abs.2 ~ Class, df.ECLASS.fit5$dataframe)
 # anova(lm(resid.abs.2 ~ Class, data = df.ECLASS.fit5$dataframe))
 
@@ -146,6 +153,8 @@ df.MBT <- Load.Clean.Data(assessment = 'MBT')
 df.MBT.fit5 <- Do.Regressions(df.MBT, assessment = 'MBT')
 
 plot(df.MBT.fit5$model, xlab = 'Fitted values', ylab = 'Residuals')
+
+MBT.Coefs <- df.MBT.fit5$Coefs
 
 # boxplot(resid.abs.2 ~ Class, df.MBT.fit5$dataframe)
 # anova(lm(resid.abs.2 ~ Class, data = df.MBT.fit5$dataframe))
@@ -161,11 +170,32 @@ df.CSEM.fit5 <- Do.Regressions(df.CSEM, assessment = 'CSEM')
 
 plot(df.CSEM.fit5$model, xlab = 'Fitted values', ylab = 'Residuals')
 
+CSEM.Coefs <- df.CSEM.fit5$Coefs
+
 # boxplot(resid.abs.2 ~ Class, df.CSEM.fit5$dataframe)
 # anova(lm(resid.abs.2 ~ Class, data = df.CSEM.fit5$dataframe))
 
 qqmath(df.CSEM.fit5$model)
 ```
+
+**Plot fixed effects**
+```{r}
+Coefs <- rbind(PLIC.Coefs %>% mutate(Assessment = 'PLIC'), ECLASS.Coefs %>% mutate(Assessment = 'E-CLASS'), MBT.Coefs %>% mutate(Assessment = 'MBT'), CSEM.Coefs %>% mutate(Assessment = 'CSEM')) %>%
+  filter(term == 'GenderF' | term == 'URM_StatusURM' | term == 'Class_StandingBFY' | term == 'First_Gen_StatusFirstGen') %>%
+  mutate(Model = as.character(Model))
+
+Coefs
+
+ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term)) +
+  geom_errorbar(aes(ymin = (estimate - std.error), ymax = (estimate + std.error)), width = 0.15) +
+  geom_line() +
+  facet_grid(rows = vars(Assessment))
+
+ggplot(Coefs, aes(x = term, y = estimate, color = Assessment)) +
+  geom_errorbar(aes(ymin = (estimate - std.error), ymax = (estimate + std.error)), width = 0.15) +
+  facet_grid(cols = vars(Model))
+```
+
 
 **Simulated Power Analysis**
 ```{r}
