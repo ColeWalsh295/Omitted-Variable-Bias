@@ -46,34 +46,42 @@ Do.Regressions <- function(dat, assessment) {
   fit0 <- lmer(PostScores ~ (1 | Class), dat)
   print(summary(fit0))
   print(r.squaredGLMM(fit0))
+  print(AIC(fit0))
   
   fit1a <- lmer(PostScores ~ Gender + (1 | Class), dat)
   print(summary(fit1a))
   print(r.squaredGLMM(fit1a))
+  print(AIC(fit1a))
   
   fit1b <- lmer(PostScores ~ URM_Status + (1 | Class), dat)
   print(summary(fit1b))
   print(r.squaredGLMM(fit1b))
+  print(AIC(fit1b))
   
   fit1c <- lmer(PostScores ~ Class_Standing + (1 | Class), dat)
   print(summary(fit1c))
   print(r.squaredGLMM(fit1c))
+  print(AIC(fit1c))
   
   fit1d <- lmer(PostScores ~ First_Gen_Status + (1 | Class), dat)
   print(summary(fit1d))
   print(r.squaredGLMM(fit1d))
+  print(AIC(fit1d))
   
   fit2 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + (1 | Class), dat)
   print(summary(fit2))
   print(r.squaredGLMM(fit2))
+  print(AIC(fit2))
   
   fit3 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + (1 | Class), dat)
   print(summary(fit3))
   print(r.squaredGLMM(fit3))
+  print(AIC(fit3))
   
   fit4 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + (1 | Class), dat)
   print(summary(fit4))
   print(r.squaredGLMM(fit4))
+  print(AIC(fit4))
   
   if(assessment == 'PLIC' | assessment == 'ECLASS'){
     fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class), dat, na.action = "na.fail")
@@ -84,11 +92,13 @@ Do.Regressions <- function(dat, assessment) {
   }
   print(summary(fit5))
   print(r.squaredGLMM(fit5))
+  print(AIC(fit5))
   
-  #fit6 <- get.models(dredge(fit5, rank = 'AIC'), subset = 1)[[1]]
+  fit6 <- get.models(dredge(fit5, rank = 'AIC'), subset = 1)[[1]]
     
-  #print(summary(fit6))
-  #print(r.squaredGLMM(fit6))
+  print(summary(fit6))
+  print(r.squaredGLMM(fit6))
+  print(AIC(fit6))
   
   class(fit0) <- "lmerMod"
   class(fit1a) <- "lmerMod"
