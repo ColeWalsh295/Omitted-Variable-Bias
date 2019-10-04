@@ -94,11 +94,11 @@ Do.Regressions <- function(dat, assessment) {
   print(r.squaredGLMM(fit5))
   print(AIC(fit5))
   
-  fit6 <- get.models(dredge(fit5, rank = 'AIC'), subset = 1)[[1]]
+  #fit6 <- get.models(dredge(fit5, rank = 'AIC'), subset = 1)[[1]]
     
-  print(summary(fit6))
-  print(r.squaredGLMM(fit6))
-  print(AIC(fit6))
+  #print(summary(fit6))
+  #print(r.squaredGLMM(fit6))
+  #print(AIC(fit6))
   
   class(fit0) <- "lmerMod"
   class(fit1a) <- "lmerMod"
@@ -201,9 +201,10 @@ ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term)) +
   geom_line() +
   facet_grid(rows = vars(Assessment))
 
-ggplot(Coefs, aes(x = term, y = estimate, color = Assessment)) +
+ggplot(Coefs, aes(x = Model, y = estimate, group = Assessment, color = Assessment)) +
   geom_errorbar(aes(ymin = (estimate - std.error), ymax = (estimate + std.error)), width = 0.15) +
-  facet_grid(cols = vars(Model))
+  geom_line() +
+  facet_grid(cols = vars(term))
 ```
 
 
