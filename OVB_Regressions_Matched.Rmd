@@ -201,9 +201,8 @@ qqmath(df.CSEM.fit5$model)
 ```{r}
 Coefs <- rbind(PLIC.Coefs %>% mutate(Assessment = 'PLIC'), ECLASS.Coefs %>% mutate(Assessment = 'E-CLASS'), MBT.Coefs %>% mutate(Assessment = 'MBT'), CSEM.Coefs %>% mutate(Assessment = 'CSEM')) %>%
   filter(term == 'GenderF' | term == 'URM_StatusURM' | term == 'Class_StandingBFY' | term == 'First_Gen_StatusFirstGen') %>%
-  mutate(Model = as.character(Model))
-
-Coefs
+  mutate(Model = as.character(Model),
+         Assessment = factor(Assessment, levels = c('MBT', 'CSEM', 'E-CLASS', 'PLIC')))
 
 ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term)) +
   geom_point(aes(shape = term), size = 3, show.legend = FALSE) +
@@ -212,9 +211,9 @@ ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term)) +
   geom_line(size = 1) +
   facet_grid(rows = vars(Assessment), scales = "free") +
   theme_classic(base_size = 16) +
-  theme(panel.spacing = unit(0.9, "lines"),
-        legend.title = element_blank()) +
-  scale_color_discrete(labels = c('Class standing', 'First-gen status', 'Gender', 'URM status'))
+  theme(legend.title = element_blank()) +
+  scale_color_discrete(labels = c('Class standing', 'First-gen status', 'Gender', 'URM status')) +
+  ylab('Coefficient')
 
 # ggplot(Coefs, aes(x = Model, y = estimate, group = Assessment, color = Assessment)) +
 #   geom_errorbar(aes(ymin = (estimate - std.error), ymax = (estimate + std.error)), width = 0.15) +
@@ -224,7 +223,7 @@ ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term)) +
 
 
 **Simulated Power Analysis**
-```{r}
+```{r eval = FALSE}
 Do.Simulated.Power <- function(model, var, fixed.eff, eff = -0.2, nsim = 1000){
   fixef(model)[fixed.eff] <- eff
   pow <- powerSim(model, test = fixed(var), progress = FALSE, nsim = nsim)
@@ -246,5 +245,14 @@ lapply(list(c('Gender', 'GenderF'), c('Class_Standing', 'Class_StandingBFY'), c(
 lapply(list(c('URM_Status', 'URM_StatusURM'), c('First_Gen_Status', 'First_Gen_StatusFirstGen')), function (x) {
   Do.Simulated.Power(model = df.CSEM.fit5$model, var = x[1], fixed.eff = x[2])
   })
+```
+
+**Appendix: linear mixed models with small number of level-2 samples**
+```{r}
+df.MBT.fit5.lm <- lm(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Class, data = df.MBT)
+
+summary(df.MBT.fit5$model)
+
+stargazer(df.MBT.fit5$model, df.MBT.fit5.lm, intercept.bottom = FALSE, out = paste('MBT_LMcomp.tex'), intercept.top = TRUE, omit.stat = 'all')
 ```
 
