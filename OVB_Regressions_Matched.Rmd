@@ -251,7 +251,7 @@ lapply(list(c('URM_Status', 'URM_StatusURM'), c('First_Gen_Status', 'First_Gen_S
 ```{r}
 df.MBT.fit5.lm <- lm(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Class, data = df.MBT)
 
-summary(df.MBT.fit5$model)
+df.PLIC.fit5.lm <- lm(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + Class, data = df.PLIC)
 
 stargazer(df.MBT.fit5$model, df.MBT.fit5.lm, intercept.bottom = FALSE, out = paste('MBT_LMcomp.tex'), intercept.top = TRUE, omit.stat = 'all')
 ```
