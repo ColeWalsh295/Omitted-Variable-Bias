@@ -9,3 +9,11 @@ Coefs_plot.png
 Coefs_plot2.png
 .Rhistory
 MBT_LMcomp.tex
+DiagnosticPlots/CSEM_qq.png
+DiagnosticPlots/CSEM_ResidFitted.png
+DiagnosticPlots/ECLASS_qq.png
+DiagnosticPlots/ECLASS_ResidFitted.png
+DiagnosticPlots/MBT_qq.png
+DiagnosticPlots/MBT_ResidFitted.png
+DiagnosticPlots/PLIC_qq.png
+DiagnosticPlots/PLIC_ResidFitted.png

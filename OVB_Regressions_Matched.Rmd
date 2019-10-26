@@ -34,8 +34,7 @@ Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/Maste
     Class = as.factor(Class),
     ACT_SAT_Math_Percentile = c(scale(ACT_SAT_Math_Percentile, scale = TRUE)),
     PreScores = c(scale(PreScores, scale = TRUE)),
-    PostScores = c(scale(PostScores, scale = TRUE))) %>%
-    filter(!is.na(URM_Status) & !is.na(Class_Standing) & !is.na(ACT_SAT_Math_Percentile))
+    PostScores = c(scale(PostScores, scale = TRUE)))
   
   return(df.assessment)
                             }
@@ -197,6 +196,8 @@ vif(df.CSEM.fit5$model)
 qqmath(df.CSEM.fit5$model)
 ```
 
+**Aggregate Statistics**
+
 **Plot fixed effects**
 ```{r}
 Coefs <- rbind(PLIC.Coefs %>% mutate(Assessment = 'PLIC'), ECLASS.Coefs %>% mutate(Assessment = 'E-CLASS'), MBT.Coefs %>% mutate(Assessment = 'MBT'), CSEM.Coefs %>% mutate(Assessment = 'CSEM')) %>%
@@ -210,9 +211,12 @@ ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term)) +
                 size = 1) +
   geom_line(size = 1) +
   facet_grid(rows = vars(Assessment), scales = "free") +
-  theme_classic(base_size = 16) +
-  theme(legend.title = element_blank()) +
-  scale_color_discrete(labels = c('Class standing', 'First-gen status', 'Gender', 'URM status')) +
+  theme_classic(base_size = 14) +
+  theme(legend.title = element_blank(), 
+        legend.position = 'top',
+        legend.text = element_text(size = 10)) +
+  scale_color_discrete(breaks = c('GenderF', 'URM_StatusURM', 'Class_StandingBFY', 'First_Gen_StatusFirstGen'),
+                       labels = c('Gender', 'URM status', 'Class standing', 'First-generation status')) +
   ylab('Coefficient')
 
 # ggplot(Coefs, aes(x = Model, y = estimate, group = Assessment, color = Assessment)) +
