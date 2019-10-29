@@ -20,10 +20,9 @@ Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/Maste
   
   df <- fread(File)
   if(impute){
-    vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'AP_Calculus_AB', 'AP_Calculus_BC',
-    'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Class',
-    'GPA')
+    vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'GPA', 'AP_Calculus_AB', 'AP_Calculus_BC', 'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Class')
     df.assessment <- df[Assessment == assessment]
+    # df.assessment <- df[Assessment == assessment & (!is.na(PreScores) | !is.na(PostScores))]
   } else {
     vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'AP_Calculus_AB', 'AP_Calculus_BC',
     'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Class')
@@ -56,13 +55,16 @@ Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/Maste
     
     Frac.Missing <- round(sum(is.na(df.assessment$PreScores) |
                                 is.na(df.assessment$PostScores))/nrow(df.assessment) * 100)
+    print(Frac.Missing)
     
     ini <- mice(df.assessment, maxit = 0)
     predM <- ini$predictorMatrix
     iniM <- ini$method
     
     predM[, 'Class'] <- -2
-    iniM <- c('', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '', '')
+    # print(iniM)
+    iniM <- c('', '', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '')
+    # iniM <- c('', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '')
     
     set.seed(11)
     imp.dat <- mice(df.assessment, m = Frac.Missing, pred = predM, met = iniM, print = FALSE)
@@ -318,9 +320,20 @@ df.master[is.na(PreScores) & is.na(PostScores), .(N.no = .N,
 
 **Appendix: multiple imputation**
 ```{r}
-df.imp <- Load.Clean.Data(assessment = 'MBT', impute = TRUE)
-fit <- with(df.imp, lme4::lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class)))
-summary(pool(fit))
+Impute.Analayze <- function(assessment){
+  df.imp <- Load.Clean.Data(assessment = assessment, impute = TRUE)
+  if(assessment == 'ECLASS' | assessment == 'PLIC'){
+    fit <- with(df.imp, lme4::lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class)))
+  } else {
+    fit <- with(df.imp, lme4::lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class)))
+  }
+  print(summary(pool(fit)))
+}
+
+Impute.Analayze('MBT')
+Impute.Analayze('CSEM')
+Impute.Analayze('ECLASS')
+Impute.Analayze('PLIC')
 ```
 
 
