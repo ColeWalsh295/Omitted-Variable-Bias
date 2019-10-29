@@ -4,6 +4,8 @@ library(data.table)
 library(tidyverse)
 library(broom)
 library(lmerTest)
+library(mice)
+library(miceadds)
 library(MuMIn)
 library(stargazer)
 library(lattice)
@@ -14,10 +16,22 @@ library(car)
 **Load data and relevel factors function**
 ```{r}
 Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/MasterDiagnosticDataConstruction/MasterData.csv',
-                            assessment) {
+                            assessment, impute = FALSE) {
+  
   df <- fread(File)
-  df.assessment <- df[Assessment == assessment & (!is.na(PreScores) & !is.na(PostScores))] %>%
-    select(Class_Standing, Gender, URM_Status, First_Gen_Status, AP_Calculus_AB, AP_Calculus_BC, ACT_SAT_Math_Percentile, PreScores, PostScores, Season, Sequence, Course_Content, Class) %>%
+  if(impute){
+    vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'AP_Calculus_AB', 'AP_Calculus_BC',
+    'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Class',
+    'GPA')
+    df.assessment <- df[Assessment == assessment]
+  } else {
+    vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'AP_Calculus_AB', 'AP_Calculus_BC',
+    'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Class')
+    df.assessment <- df[Assessment == assessment & (!is.na(PreScores) & !is.na(PostScores))]
+  }
+  
+  df.assessment <- df.assessment %>%
+    select(vars) %>%
     mutate(Class_Standing = relevel(as.factor(case_when(
       Class_Standing == 'Fresh' ~ 'FY',
       Class_Standing == 'Sophomore' | Class_Standing == 'Junior' | Class_Standing == 'Senior' ~ 'BFY',
@@ -36,6 +50,24 @@ Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/Maste
     PreScores = c(scale(PreScores, scale = TRUE)),
     PostScores = c(scale(PostScores, scale = TRUE)))
   
+  if(impute){
+    levels(df.assessment$Class) <- 1:length(levels(df.assessment$Class))
+    df.assessment$Class <- as.numeric(df.assessment$Class)
+    
+    Frac.Missing <- round(sum(is.na(df.assessment$PreScores) |
+                                is.na(df.assessment$PostScores))/nrow(df.assessment) * 100)
+    
+    ini <- mice(df.assessment, maxit = 0)
+    predM <- ini$predictorMatrix
+    iniM <- ini$method
+    
+    predM[, 'Class'] <- -2
+    iniM <- c('', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '', '')
+    
+    set.seed(11)
+    imp.dat <- mice(df.assessment, m = Frac.Missing, pred = predM, met = iniM, print = FALSE)
+    return(imp.dat)
+  }
   return(df.assessment)
                             }
 ```
@@ -227,7 +259,7 @@ ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term)) +
 
 
 **Simulated Power Analysis**
-```{r eval = FALSE}
+```{r eval = FALSE, warning = FALSE}
 Do.Simulated.Power <- function(model, var, fixed.eff, eff = -0.2, nsim = 1000){
   fixef(model)[fixed.eff] <- eff
   pow <- powerSim(model, test = fixed(var), progress = FALSE, nsim = nsim)
@@ -250,6 +282,47 @@ lapply(list(c('URM_Status', 'URM_StatusURM'), c('First_Gen_Status', 'First_Gen_S
   Do.Simulated.Power(model = df.CSEM.fit5$model, var = x[1], fixed.eff = x[2])
   })
 ```
+
+**Appendix: missing data**
+```{r}
+df.master <- fread('C:/Users/Cole/Documents/GRA_Summer2019/MasterDiagnosticDataConstruction/MasterData.csv')
+
+# Matched
+df.master[!is.na(PreScores) & !is.na(PostScores), .(.N,
+                                                    avg.GPA = mean(GPA),
+                                                    stderror.GPA = sd(GPA)/sqrt(.N),
+                                                    avg.pre = mean(PreScores), 
+                                                    sderror.pre = sd(PreScores)/sqrt(.N),
+                                                    avg.post = mean(PostScores), 
+                                                    sderror.post = sd(PostScores)/sqrt(.N)), Assessment]
+
+# Valid Pre
+df.master[!is.na(PreScores) & is.na(PostScores), .(N.pre = .N,
+                                                   avg.GPA = mean(GPA),
+                                                   stderror.GPA = sd(GPA)/sqrt(.N),
+                                                   avg.pre = mean(PreScores),
+                                                   sderror.pre = sd(PreScores)/sqrt(.N)), Assessment]
+
+# Valid Post
+df.master[is.na(PreScores) & !is.na(PostScores), .(N.post = .N,
+                                                   avg.GPA = mean(GPA),
+                                                   stderror.GPA = sd(GPA)/sqrt(.N),
+                                                   avg.post = mean(PostScores),
+                                                   sderror.post = sd(PostScores)/sqrt(.N)), Assessment]
+
+# No Survey
+df.master[is.na(PreScores) & is.na(PostScores), .(N.no = .N,
+                                                  avg.GPA = mean(GPA),
+                                                  stderror.GPA = sd(GPA)/sqrt(.N)), Assessment]
+```
+
+**Appendix: multiple imputation**
+```{r}
+df.imp <- Load.Clean.Data(assessment = 'MBT', impute = TRUE)
+fit <- with(df.imp, lme4::lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class)))
+summary(pool(fit))
+```
+
 
 **Appendix: linear mixed models with small number of level-2 samples**
 ```{r}
