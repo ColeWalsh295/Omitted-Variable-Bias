@@ -23,6 +23,7 @@ Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/Maste
     vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'GPA', 'AP_Calculus_AB', 'AP_Calculus_BC', 'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Class')
     df.assessment <- df[Assessment == assessment]
     # df.assessment <- df[Assessment == assessment & (!is.na(PreScores) | !is.na(PostScores))]
+    print(nrow(df.assessment))
   } else {
     vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'AP_Calculus_AB', 'AP_Calculus_BC',
     'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Class')
@@ -261,7 +262,7 @@ ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term)) +
 
 
 **Simulated Power Analysis**
-```{r eval = FALSE, warning = FALSE}
+```{r eval = FALSE warning = FALSE}
 Do.Simulated.Power <- function(model, var, fixed.eff, eff = -0.2, nsim = 1000){
   fixef(model)[fixed.eff] <- eff
   pow <- powerSim(model, test = fixed(var), progress = FALSE, nsim = nsim)
@@ -319,15 +320,36 @@ df.master[is.na(PreScores) & is.na(PostScores), .(N.no = .N,
 ```
 
 **Appendix: multiple imputation**
-```{r}
+```{r warning = FALSE}
 Impute.Analayze <- function(assessment){
   df.imp <- Load.Clean.Data(assessment = assessment, impute = TRUE)
   if(assessment == 'ECLASS' | assessment == 'PLIC'){
-    fit <- with(df.imp, lme4::lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class)))
+    model <- 'PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class)'
   } else {
-    fit <- with(df.imp, lme4::lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class)))
+    model <- 'PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class)'
   }
+  fit <- with(df.imp, lme4::lmer(formula(model)))
   print(summary(pool(fit)))
+  
+  df.complete <- mice::complete(df.imp, "long", include = FALSE)
+  R2M.L <- c()
+  R2C.L <- c()
+  AIC.L <- c()
+  m <- max(df.complete$.imp)
+  for(i in 1:m){
+    model.imputed <- lme4::lmer(formula(model), data = df.complete[which(df.complete$.imp == i),])
+    
+    R2 <- r.squaredGLMM(model.imputed)
+    R2M.L[i] <- R2[1, 'R2m']
+    R2C.L[i] <- R2[1, 'R2c']
+    AIC.L[i] <- AIC(model.imputed)
+  }
+  print(mean(R2M.L))
+  print(sd(R2M.L))
+  print(mean(R2C.L))
+  print(sd(R2C.L))
+  print(mean(AIC.L))
+  print(sd(AIC.L))
 }
 
 Impute.Analayze('MBT')
@@ -341,8 +363,11 @@ Impute.Analayze('PLIC')
 ```{r}
 df.MBT.fit5.lm <- lm(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Class, data = df.MBT)
 
-df.PLIC.fit5.lm <- lm(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + Class, data = df.PLIC)
+#df.PLIC.fit5.lm <- lm(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + Class, data = df.PLIC)
 
-stargazer(df.MBT.fit5$model, df.MBT.fit5.lm, intercept.bottom = FALSE, out = paste('MBT_LMcomp.tex'), intercept.top = TRUE, omit.stat = 'all')
+summary(df.MBT.fit5.lm)
+AIC(df.MBT.fit5.lm)
+
+stargazer(df.MBT.fit5$model, df.MBT.fit5.lm, star.cutoffs = c(0.05, 0.01, 0.001), intercept.bottom = FALSE, out = paste('MBT_LMcomp.tex'), intercept.top = TRUE, omit.stat = 'all')
 ```
 
