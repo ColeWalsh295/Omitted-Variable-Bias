@@ -6,8 +6,5 @@ df = read.csv("C:\\Users\\marti\\Box\\Omitted Variable Bias Project\\MasterData.
 
 vars = c("PreScores", "PostScores", "ACT_SAT_Math_Percentile", "Gender", "URM_Status", "Class_Standing", "First_Gen_Status", "AP_Calculus_AB", "AP_Calculus_BC", "Season", "Sequence", "Course_Content")
 
-CreateTableOne(vars = vars, data = df[df$Assessment=="MBT" & !is.na(df$PreScores) & !is.na(df$PostScores),])
-CreateTableOne(vars = vars, data = df[df$Assessment=="CSEM" & !is.na(df$PreScores) & !is.na(df$PostScores),])
-CreateTableOne(vars = vars, data = df[df$Assessment=="ECLASS" & !is.na(df$PreScores) & !is.na(df$PostScores),])
-CreateTableOne(vars = vars, data = df[df$Assessment=="PLIC" & !is.na(df$PreScores) & !is.na(df$PostScores),])
+CreateTableOne(vars = vars, strata = c("Assessment"), data = df[!is.na(df$PreScores) & !is.na(df$PostScores),])
 ```
