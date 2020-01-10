@@ -21,12 +21,12 @@ Power.func <- function(effect, power){
   }
 
 #wp.regression(p1 = 8, p2 = 2, f2 = 0.02, alpha = 0.05, power = 0.99)
-df <- data.frame(Power = power.vec, N1 = sapply(power.vec, Power.func, effect = 0.02), 
-                 N2 = sapply(power.vec, Power.func, effect = 0.15),
-                 N3 = sapply(power.vec, Power.func, effect = 0.35)) %>%
+df <- data.frame(Power = power.vec, N1 = sapply(power.vec, Power.func, effect = 0.02)) %>%#, 
+                 #N2 = sapply(power.vec, Power.func, effect = 0.15),
+                 #N3 = sapply(power.vec, Power.func, effect = 0.35)) %>%
   melt(., id.vars = 'Power')
 
-ggplot(df, aes(x = value, y = Power, color = variable)) +
+ggplot(df, aes(x = value, y = Power)) +
   #geom_point() +
   theme_classic() +
   geom_line(size = 1) +
