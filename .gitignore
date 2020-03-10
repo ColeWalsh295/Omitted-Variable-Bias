@@ -18,3 +18,4 @@ DiagnosticPlots/MBT_ResidFitted.png
 DiagnosticPlots/PLIC_qq.png
 DiagnosticPlots/PLIC_ResidFitted.png
 *.png
+*.tiff

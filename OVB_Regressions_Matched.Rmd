@@ -120,11 +120,12 @@ Do.Regressions <- function(dat, assessment) {
   print(AIC(fit4))
   
   if(assessment == 'PLIC' | assessment == 'ECLASS'){
+    dat$Course_Content <- relevel(dat$Course_Content, ref = 'Mechanics')
     fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + Course_Content + (1 | Class), dat, na.action = 'na.fail')
     #fit6 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + Season + Sequence + Course_Content + (1 | Class), dat)
   } else {
     fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Season + Sequence + (1 | Class), dat, na.action = 'na.fail')
-    fit6 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + Season + Sequence + (1 | Class), dat)
+    #fit6 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + Season + Sequence + (1 | Class), dat)
   }
   print(summary(fit5))
   print(r.squaredGLMM(fit5))
@@ -245,6 +246,8 @@ qqmath(df.CSEM.fit5$model)
 
 **Plot fixed effects**
 ```{r}
+png("test.png", units="in", width=6, height=5, res=300)
+
 Coefs <- rbind(PLIC.Coefs %>% mutate(Assessment = 'PLIC'), ECLASS.Coefs %>% mutate(Assessment = 'E-CLASS'), MBT.Coefs %>% mutate(Assessment = 'MBT'), CSEM.Coefs %>% mutate(Assessment = 'CSEM')) %>%
   filter(term == 'GenderF' | term == 'URM_StatusURM' | term == 'Class_StandingBFY' | term == 'First_Gen_StatusFirstGen') %>%
   mutate(Model = as.character(Model),
@@ -268,6 +271,9 @@ ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term, shape = t
         legend.position = 'top',
         legend.text = element_text(size = 10)) +
   ylab('Coefficient')
+
+# insert ggplot code
+dev.off()
 
 # ggplot(Coefs, aes(x = Model, y = estimate, group = Assessment, color = Assessment)) +
 #   geom_errorbar(aes(ymin = (estimate - std.error), ymax = (estimate + std.error)), width = 0.15) +
