@@ -1,3 +1,4 @@
+# Load necessary packages
 ```{r warning = FALSE, message = FALSE}
 library(car)
 library(dplyr)
@@ -11,22 +12,17 @@ library(lmerTest)
 library(stargazer)
 ```
 
-**Load real data**
+# Functions to load real data and view descriptive stats
 ```{r}
-Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/MasterDiagnosticDataConstruction/MasterData.csv',
-                            assessment, impute = FALSE) {
-  
+Load.Clean.Data <- function(File = 'OVB_Master.csv', assessment) {
+  # load and filter master dataset by assessment; process and relevel variables
   df <- fread(File)
-  if(impute){
-    vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'GPA', 'AP_Calculus_AB', 'AP_Calculus_BC', 'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Instruction', 'IntendedMajor', 'Class')
-    df.assessment <- df[Assessment == assessment]
-    # df.assessment <- df[Assessment == assessment & (!is.na(PreScores) | !is.na(PostScores))]
-    print(nrow(df.assessment))
-  } else {
-    vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'AP_Calculus_AB', 'AP_Calculus_BC',
-    'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Instruction', 'IntendedMajor', 'Class')
-    df.assessment <- df[Assessment == assessment & (!is.na(PreScores) & !is.na(PostScores))]
-  }
+  vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 
+            'AP_Calculus_AB', 'AP_Calculus_BC', 'ACT_SAT_Math_Percentile', 'PreScores', 
+            'PostScores', 'Semester', 'Sequence', 'Course_Content', 'Instruction', 
+            'IntendedMajor', 'Class_ID')
+    df.assessment <- df[Assessment == assessment & (!is.na(PreScores) & 
+                                                      !is.na(PostScores))]
   
   df.assessment <- df.assessment %>%
     select(vars) %>%
@@ -38,71 +34,52 @@ Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/Maste
     Gender = relevel(as.factor(Gender), ref = 'M'),
     URM_Status = relevel(as.factor(URM_Status), ref = 'Majority'),
     First_Gen_Status = relevel(as.factor(First_Gen_Status), ref = 'ContGen'),
-    AP_Calculus_AB = factor(AP_Calculus_AB, levels = c('NotTaken', 'Poor', 'Well'), ordered = TRUE),
-    AP_Calculus_BC = factor(AP_Calculus_BC, levels = c('NotTaken', 'Poor', 'Well'), ordered = TRUE),
-    Season = relevel(as.factor(Season), ref = 'FA'),
+    AP_Calculus_AB = factor(AP_Calculus_AB, levels = c('NotTaken', 'Poor', 'Well'), 
+                            ordered = TRUE),
+    AP_Calculus_BC = factor(AP_Calculus_BC, levels = c('NotTaken', 'Poor', 'Well'), 
+                            ordered = TRUE),
+    Semester = relevel(as.factor(Semester), ref = 'FA'),
     Sequence = relevel(as.factor(Sequence), ref = 'Engineering'),
     Instruction = relevel(as.factor(Instruction), ref = 'Old'),
     IntendedMajor = relevel(as.factor(IntendedMajor), ref = 'EngineeringOrOtherSci'),
     Course_Content = as.factor(Course_Content),
-    Class = as.factor(Class),
+    Class_ID = as.factor(Class_ID),
     ACT_SAT_Math_Percentile = ACT_SAT_Math_Percentile)
-    # PreScores = c(scale(PreScores, scale = TRUE)),
-    # PostScores = c(scale(PostScores, scale = TRUE)))
   
-  if(assessment == 'PLIC' | assessment == 'ECLASS'){
-    df.assessment$IntendedMajor <- relevel(as.factor(df.assessment$IntendedMajor), ref = 'EngineeringOrOtherSci')
-  }
-  
-  if(impute){
-    levels(df.assessment$Class) <- 1:length(levels(df.assessment$Class))
-    df.assessment$Class <- as.numeric(df.assessment$Class)
-    
-    Frac.Missing <- round(sum(is.na(df.assessment$PreScores) |
-                                is.na(df.assessment$PostScores))/nrow(df.assessment) * 100)
-    print(Frac.Missing)
-    
-    ini <- mice(df.assessment, maxit = 0)
-    predM <- ini$predictorMatrix
-    iniM <- ini$method
-    
-    predM[, 'Class'] <- -2
-    # print(iniM)
-    iniM <- c('', '', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '')
-    # iniM <- c('', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '')
-    
-    set.seed(11)
-    imp.dat <- mice(df.assessment, m = Frac.Missing, pred = predM, met = iniM, print = FALSE)
-    return(imp.dat)
+  if(assessment == 'ECLASS'){
+    df.assessment$IntendedMajor <- relevel(as.factor(df.assessment$IntendedMajor), 
+                                           ref = 'EngineeringOrOtherSci')
   }
   return(df.assessment)
-                            }
-```
+}
 
-```{r}
 desc.stats <- function(df, var){
+  # compute descriptive statistics grouped by variable
   df %>%
     group_by_(var) %>%
-    summarize(N = n(), avg.pre = mean(PreScores), sd.pre = sd(PreScores), avg.post = mean(PostScores),
-              sd.post = sd(PostScores))
+    summarize(N = n(), avg.pre = mean(PreScores), sd.pre = sd(PreScores), 
+              avg.post = mean(PostScores), sd.post = sd(PostScores))
 }
 ```
 
+# Load E-CLASS dataset and conduct analyses
 ```{r}
 df.ECLASS <- Load.Clean.Data(assessment = 'ECLASS') %>%
   filter(IntendedMajor != '') %>%
-  # select(-c('Class'))
   select(PostScores, PreScores, IntendedMajor, Instruction, URM_Status)
 
-df.ECLASS$IntendedMajor <- droplevels(df.ECLASS$IntendedMajor)
-hetcor(df.ECLASS)
+df.ECLASS$IntendedMajor <- droplevels(df.ECLASS$IntendedMajor) # '' was treated as a level
+hetcor(df.ECLASS) # correlations of all variables
 
+# check overall averages and whether differences exist in scores
 desc.stats(df.ECLASS, 'IntendedMajor')
 t.test(PreScores ~ IntendedMajor, df.ECLASS)
 t.test(PostScores ~ IntendedMajor, df.ECLASS)
+
 desc.stats(df.ECLASS, 'Instruction')
 t.test(PreScores ~ Instruction, df.ECLASS)
 t.test(PostScores ~ Instruction, df.ECLASS)
+
 desc.stats(df.ECLASS, 'URM_Status')
 t.test(PreScores ~ URM_Status, df.ECLASS)
 t.test(PostScores ~ URM_Status, df.ECLASS)
@@ -112,12 +89,11 @@ chisq.test(table(df.ECLASS$IntendedMajor, df.ECLASS$Instruction))
 table(df.ECLASS$IntendedMajor, df.ECLASS$URM_Status)
 chisq.test(table(df.ECLASS$IntendedMajor, df.ECLASS$URM_Status))
 
+# mod1 -> comparison model, mod2 -> effect of major changes, mod3 -> effect of major 
+# unchanged
 mod.ECLASS.1 <- lm(PostScores ~ PreScores + IntendedMajor, df.ECLASS)
 mod.ECLASS.2 <- lm(PostScores ~ PreScores + IntendedMajor + Instruction, df.ECLASS)
 mod.ECLASS.3 <- lm(PostScores ~ PreScores + IntendedMajor + URM_Status, df.ECLASS)
-
-cor(df.ECLASS$IntendedMajor, df.ECLASS$Instruction)
-cor(df.ECLASS$IntendedMajor, df.ECLASS$URM_Status)
 
 summary(mod.ECLASS.1)
 beta(mod.ECLASS.1, skip = 'IntendedMajor')
@@ -132,8 +108,9 @@ beta(mod.ECLASS.3, skip = c('IntendedMajor', 'URM_Status'))
 AIC(mod.ECLASS.3)
 ```
 
-**Analytic solution**
+# Analytic OVB solution with two variables
 ```{r}
+# get correlations between E-CLASS variables for comparison
 df.ECLASS$IntendedMajor <- as.numeric(df.ECLASS$IntendedMajor) - 1
 df.ECLASS$Instruction <- as.numeric(df.ECLASS$Instruction) - 1
 df.ECLASS$URM_Status <- as.numeric(df.ECLASS$URM_Status) - 1
@@ -141,6 +118,7 @@ df.ECLASS$URM_Status <- as.numeric(df.ECLASS$URM_Status) - 1
 cor(df.ECLASS)
 
 func <- function(x, r12, r13, r23){
+  # relative bias as a function of correlations between variables and true effect size
   y <- x * (r13 - r12 * r23)/(1 - r12^2)
   return(y)
 }
@@ -159,17 +137,24 @@ df <- data.frame(x = x.vec, small.cors = small.cors, small.cors.opp = small.cors
                  mod.cors = mod.cors, multicol.cors = multicol.cors) %>%
   melt(., id.vars = 'x')
 
+png('Figures/Simulated_OVB.png', height = 363, width = 363)
 ggplot(df, aes(x = x, y = value, color = variable)) +
   #geom_point() +
   theme_classic() +
   geom_line(size = 1) +
-  labs(x = TeX('$\\frac{\\beta_3}{\\beta_1}$'), y = TeX('Expected relative bias on $\\beta_1$')) +
-  scale_color_manual(name = 'Correlations', labels = list(TeX('$r_{12} \\approx r_{13} = r_{23} = 0.2$'), TeX('$r_{12} = r_{23} = 0.2$, $r_{13} = -0.2$'), TeX('$r_{12} = r_{13} = r_{23} = 0.4$'), TeX('$r_{12} = r_{23} = 0.2$, $r_{13} = 0.6$')), values = c('#2271B2', '#359B73', '#F748A5', '#D55E00')) +
+  labs(x = TeX('$\\frac{\\beta_3}{\\beta_1}$'), 
+       y = TeX('Expected relative bias on $\\beta_1$')) +
+  scale_color_manual(name = 'Correlations', 
+                     labels = list(TeX('$r_{12} \\approx r_{13} = r_{23} = 0.2$'), 
+                                   TeX('$r_{12} = r_{23} = 0.2$, $r_{13} = -0.2$'), 
+                                   TeX('$r_{12} = r_{13} = r_{23} = 0.4$'), 
+                                   TeX('$r_{12} = r_{23} = 0.2$, $r_{13} = 0.6$')), 
+                     values = c('#2271B2', '#359B73', '#F748A5', '#D55E00')) +
   theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), 'cm'))
-```
+dev.off()
 
-```{r}
 rev.func <- function(y, r12, r13, r23){
+  # func-1 above; get true effect size needed to observe expected bias
   x <- y / (r13 - r12 * r23) * (1 - r12^2)
   return(x)
 }
@@ -177,5 +162,3 @@ rev.func <- function(y, r12, r13, r23){
 func(5, 0.2, 0.6, 0.2)
 rev.func(1, 0.2, 0.6, 0.2)
 ```
-
-
