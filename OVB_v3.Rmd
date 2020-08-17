@@ -1,0 +1,181 @@
+```{r warning = FALSE, message = FALSE}
+library(car)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(latex2exp)
+library(data.table)
+library(polycor)
+library(reghelper)
+library(lmerTest)
+library(stargazer)
+```
+
+**Load real data**
+```{r}
+Load.Clean.Data <- function(File = 'C:/Users/Cole/Documents/GRA_Summer2019/MasterDiagnosticDataConstruction/MasterData.csv',
+                            assessment, impute = FALSE) {
+  
+  df <- fread(File)
+  if(impute){
+    vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'GPA', 'AP_Calculus_AB', 'AP_Calculus_BC', 'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Instruction', 'IntendedMajor', 'Class')
+    df.assessment <- df[Assessment == assessment]
+    # df.assessment <- df[Assessment == assessment & (!is.na(PreScores) | !is.na(PostScores))]
+    print(nrow(df.assessment))
+  } else {
+    vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status', 'AP_Calculus_AB', 'AP_Calculus_BC',
+    'ACT_SAT_Math_Percentile', 'PreScores', 'PostScores', 'Season', 'Sequence', 'Course_Content', 'Instruction', 'IntendedMajor', 'Class')
+    df.assessment <- df[Assessment == assessment & (!is.na(PreScores) & !is.na(PostScores))]
+  }
+  
+  df.assessment <- df.assessment %>%
+    select(vars) %>%
+    mutate(Class_Standing = relevel(as.factor(case_when(
+      Class_Standing == 'Fresh' ~ 'FY',
+      Class_Standing == 'Sophomore' | Class_Standing == 'Junior' | Class_Standing == 'Senior' ~ 'BFY',
+      TRUE ~ NA_character_
+    )), ref = 'FY'),
+    Gender = relevel(as.factor(Gender), ref = 'M'),
+    URM_Status = relevel(as.factor(URM_Status), ref = 'Majority'),
+    First_Gen_Status = relevel(as.factor(First_Gen_Status), ref = 'ContGen'),
+    AP_Calculus_AB = factor(AP_Calculus_AB, levels = c('NotTaken', 'Poor', 'Well'), ordered = TRUE),
+    AP_Calculus_BC = factor(AP_Calculus_BC, levels = c('NotTaken', 'Poor', 'Well'), ordered = TRUE),
+    Season = relevel(as.factor(Season), ref = 'FA'),
+    Sequence = relevel(as.factor(Sequence), ref = 'Engineering'),
+    Instruction = relevel(as.factor(Instruction), ref = 'Old'),
+    IntendedMajor = relevel(as.factor(IntendedMajor), ref = 'EngineeringOrOtherSci'),
+    Course_Content = as.factor(Course_Content),
+    Class = as.factor(Class),
+    ACT_SAT_Math_Percentile = ACT_SAT_Math_Percentile)
+    # PreScores = c(scale(PreScores, scale = TRUE)),
+    # PostScores = c(scale(PostScores, scale = TRUE)))
+  
+  if(assessment == 'PLIC' | assessment == 'ECLASS'){
+    df.assessment$IntendedMajor <- relevel(as.factor(df.assessment$IntendedMajor), ref = 'EngineeringOrOtherSci')
+  }
+  
+  if(impute){
+    levels(df.assessment$Class) <- 1:length(levels(df.assessment$Class))
+    df.assessment$Class <- as.numeric(df.assessment$Class)
+    
+    Frac.Missing <- round(sum(is.na(df.assessment$PreScores) |
+                                is.na(df.assessment$PostScores))/nrow(df.assessment) * 100)
+    print(Frac.Missing)
+    
+    ini <- mice(df.assessment, maxit = 0)
+    predM <- ini$predictorMatrix
+    iniM <- ini$method
+    
+    predM[, 'Class'] <- -2
+    # print(iniM)
+    iniM <- c('', '', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '')
+    # iniM <- c('', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '')
+    
+    set.seed(11)
+    imp.dat <- mice(df.assessment, m = Frac.Missing, pred = predM, met = iniM, print = FALSE)
+    return(imp.dat)
+  }
+  return(df.assessment)
+                            }
+```
+
+```{r}
+desc.stats <- function(df, var){
+  df %>%
+    group_by_(var) %>%
+    summarize(N = n(), avg.pre = mean(PreScores), sd.pre = sd(PreScores), avg.post = mean(PostScores),
+              sd.post = sd(PostScores))
+}
+```
+
+```{r}
+df.ECLASS <- Load.Clean.Data(assessment = 'ECLASS') %>%
+  filter(IntendedMajor != '') %>%
+  # select(-c('Class'))
+  select(PostScores, PreScores, IntendedMajor, Instruction, URM_Status)
+
+df.ECLASS$IntendedMajor <- droplevels(df.ECLASS$IntendedMajor)
+hetcor(df.ECLASS)
+
+desc.stats(df.ECLASS, 'IntendedMajor')
+t.test(PreScores ~ IntendedMajor, df.ECLASS)
+t.test(PostScores ~ IntendedMajor, df.ECLASS)
+desc.stats(df.ECLASS, 'Instruction')
+t.test(PreScores ~ Instruction, df.ECLASS)
+t.test(PostScores ~ Instruction, df.ECLASS)
+desc.stats(df.ECLASS, 'URM_Status')
+t.test(PreScores ~ URM_Status, df.ECLASS)
+t.test(PostScores ~ URM_Status, df.ECLASS)
+
+table(df.ECLASS$IntendedMajor, df.ECLASS$Instruction)
+chisq.test(table(df.ECLASS$IntendedMajor, df.ECLASS$Instruction))
+table(df.ECLASS$IntendedMajor, df.ECLASS$URM_Status)
+chisq.test(table(df.ECLASS$IntendedMajor, df.ECLASS$URM_Status))
+
+mod.ECLASS.1 <- lm(PostScores ~ PreScores + IntendedMajor, df.ECLASS)
+mod.ECLASS.2 <- lm(PostScores ~ PreScores + IntendedMajor + Instruction, df.ECLASS)
+mod.ECLASS.3 <- lm(PostScores ~ PreScores + IntendedMajor + URM_Status, df.ECLASS)
+
+cor(df.ECLASS$IntendedMajor, df.ECLASS$Instruction)
+cor(df.ECLASS$IntendedMajor, df.ECLASS$URM_Status)
+
+summary(mod.ECLASS.1)
+beta(mod.ECLASS.1, skip = 'IntendedMajor')
+AIC(mod.ECLASS.1)
+
+summary(mod.ECLASS.2)
+beta(mod.ECLASS.2, skip = c('IntendedMajor', 'Instruction'))
+AIC(mod.ECLASS.2)
+
+summary(mod.ECLASS.3)
+beta(mod.ECLASS.3, skip = c('IntendedMajor', 'URM_Status'))
+AIC(mod.ECLASS.3)
+```
+
+**Analytic solution**
+```{r}
+df.ECLASS$IntendedMajor <- as.numeric(df.ECLASS$IntendedMajor) - 1
+df.ECLASS$Instruction <- as.numeric(df.ECLASS$Instruction) - 1
+df.ECLASS$URM_Status <- as.numeric(df.ECLASS$URM_Status) - 1
+
+cor(df.ECLASS)
+
+func <- function(x, r12, r13, r23){
+  y <- x * (r13 - r12 * r23)/(1 - r12^2)
+  return(y)
+}
+
+x.vec <- c(-5, 5)
+
+small.cors <- as.vector(sapply(x.vec, func, r12 = 0.2, r13 = 0.2, r23 = 0.2))
+
+small.cors.opp <- as.vector(sapply(x.vec, func, r12 = 0.2, r13 = -0.2, r23 = 0.2))
+
+mod.cors <- as.vector(sapply(x.vec, func, r12 = 0.4, r13 = 0.4, r23 = 0.4))
+
+multicol.cors <- as.vector(sapply(x.vec, func, r12 = 0.2, r13 = 0.6, r23 = 0.2))
+
+df <- data.frame(x = x.vec, small.cors = small.cors, small.cors.opp = small.cors.opp, 
+                 mod.cors = mod.cors, multicol.cors = multicol.cors) %>%
+  melt(., id.vars = 'x')
+
+ggplot(df, aes(x = x, y = value, color = variable)) +
+  #geom_point() +
+  theme_classic() +
+  geom_line(size = 1) +
+  labs(x = TeX('$\\frac{\\beta_3}{\\beta_1}$'), y = TeX('Expected relative bias on $\\beta_1$')) +
+  scale_color_manual(name = 'Correlations', labels = list(TeX('$r_{12} \\approx r_{13} = r_{23} = 0.2$'), TeX('$r_{12} = r_{23} = 0.2$, $r_{13} = -0.2$'), TeX('$r_{12} = r_{13} = r_{23} = 0.4$'), TeX('$r_{12} = r_{23} = 0.2$, $r_{13} = 0.6$')), values = c('#2271B2', '#359B73', '#F748A5', '#D55E00')) +
+  theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), 'cm'))
+```
+
+```{r}
+rev.func <- function(y, r12, r13, r23){
+  x <- y / (r13 - r12 * r23) * (1 - r12^2)
+  return(x)
+}
+
+func(5, 0.2, 0.6, 0.2)
+rev.func(1, 0.2, 0.6, 0.2)
+```
+
+

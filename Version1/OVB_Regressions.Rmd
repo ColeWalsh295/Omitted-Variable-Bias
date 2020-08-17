@@ -1,0 +1,429 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# Import necessary libraries
+```{r, results = 'hide', message = FALSE, warning = FALSE}
+library(data.table)
+library(tidyverse)
+library(broom)
+library(lmerTest)
+library(mice)
+library(miceadds)
+library(MuMIn)
+library(stargazer)
+library(lattice)
+library(simr)
+library(car)
+library(tableone)
+```
+
+# Functions for processing and analyses
+
+## Load data and relevel factors
+```{r}
+Load.Clean.Data <- function(File = 'OVB_Master.csv', assessment, impute = FALSE) {
+  # read in Master file, filter for particular assessment, and perform some data cleaning
+  # also impute data if desired
+  
+  vars <- c('Class_Standing', 'Gender', 'URM_Status', 'First_Gen_Status',
+            'AP_Calculus_AB', 'AP_Calculus_BC', 'ACT_SAT_Math_Percentile', 'PreScores', 
+            'PostScores', 'Semester', 'Sequence', 'Course_Content', 'Class_ID')
+  
+  df <- fread(File)
+  if(impute){
+    vars <- append(vars, 'GPA')
+    df.assessment <- df[Assessment == assessment]
+  } else { # only get matched data if not imputing
+    df.assessment <- df[Assessment == assessment & (!is.na(PreScores) & 
+                                                      !is.na(PostScores))]
+  }
+  
+  df.assessment <- df.assessment %>%
+    select(vars) %>%
+    mutate(Class_Standing = relevel(as.factor(case_when(
+      Class_Standing == 'Fresh' ~ 'FY',
+      Class_Standing == 'Sophomore' | Class_Standing == 'Junior' | 
+        Class_Standing == 'Senior' ~ 'BFY',
+      TRUE ~ NA_character_
+    )), ref = 'FY'),
+    Gender = relevel(as.factor(Gender), ref = 'M'),
+    URM_Status = relevel(as.factor(URM_Status), ref = 'Majority'),
+    First_Gen_Status = relevel(as.factor(First_Gen_Status), ref = 'ContGen'),
+    AP_Calculus_AB = relevel(as.factor(AP_Calculus_AB), ref = 'NotTaken'),
+    AP_Calculus_BC = relevel(as.factor(AP_Calculus_BC), ref = 'NotTaken'),
+    Semester = relevel(as.factor(Semester), ref = 'FA'),
+    Sequence = relevel(as.factor(Sequence), ref = 'Engineering'),
+    Course_Content = as.factor(Course_Content),
+    Class_ID = as.factor(Class_ID),
+    ACT_SAT_Math_Percentile = c(scale(ACT_SAT_Math_Percentile, scale = TRUE)),
+    PreScores = c(scale(PreScores, scale = TRUE)),
+    PostScores = c(scale(PostScores, scale = TRUE)))
+  
+  if(impute){
+    levels(df.assessment$Class_ID) <- 1:length(levels(df.assessment$Class_ID))
+    df.assessment$Class_ID <- as.numeric(df.assessment$Class_ID)
+    
+    Frac.Missing <- round(sum(is.na(df.assessment$PreScores) |
+                                is.na(df.assessment$PostScores))/
+                            nrow(df.assessment) * 100)
+    print('% of students without matched data:')
+    print(Frac.Missing)
+    
+    ini <- mice(df.assessment, maxit = 0)
+    predM <- ini$predictorMatrix
+    iniM <- ini$method
+    
+    predM[, 'Class_ID'] <- -2 # Class_ID is the grouping variable
+    # 2l.pmmm of noth pretest and posttest scores
+    iniM <- c('', '', '', '', '', '', '', '2l.pmm', '2l.pmm', '', '', '', '', '')
+    
+    set.seed(11)
+    # we impute Frac.Missing datatsets as recommended by Rubin
+    imp.dat <- mice(df.assessment, m = Frac.Missing, pred = predM, met = iniM, 
+                    print = FALSE)
+    return(imp.dat)
+  }
+  return(df.assessment)
+                            }
+```
+
+## Function to perform all fits
+```{r}
+Do.Regressions <- function(dat, assessment) {
+  # run nine regressions with posttest score as the dependent variable. Print R^2 and AIC
+  # for each model to compare fit statistics with coefficient estimates
+  
+  fit0 <- lmer(PostScores ~ (1 | Class_ID), dat)
+  print(summary(fit0))
+  print(r.squaredGLMM(fit0))
+  print(AIC(fit0))
+  
+  fit1a <- lmer(PostScores ~ Gender + (1 | Class_ID), dat)
+  print(summary(fit1a))
+  print(r.squaredGLMM(fit1a))
+  print(AIC(fit1a))
+  
+  fit1b <- lmer(PostScores ~ URM_Status + (1 | Class_ID), dat)
+  print(summary(fit1b))
+  print(r.squaredGLMM(fit1b))
+  print(AIC(fit1b))
+  
+  fit1c <- lmer(PostScores ~ Class_Standing + (1 | Class_ID), dat)
+  print(summary(fit1c))
+  print(r.squaredGLMM(fit1c))
+  print(AIC(fit1c))
+  
+  fit1d <- lmer(PostScores ~ First_Gen_Status + (1 | Class_ID), dat)
+  print(summary(fit1d))
+  print(r.squaredGLMM(fit1d))
+  print(AIC(fit1d))
+  
+  fit2 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + 
+                 (1 | Class_ID), dat)
+  print(summary(fit2))
+  print(r.squaredGLMM(fit2))
+  print(AIC(fit2))
+  
+  fit3 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + 
+                 PreScores + (1 | Class_ID), dat)
+  print(summary(fit3))
+  print(r.squaredGLMM(fit3))
+  print(AIC(fit3))
+  
+  fit4 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + 
+                 PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + 
+                 (1 | Class_ID), dat)
+  print(summary(fit4))
+  print(r.squaredGLMM(fit4))
+  print(AIC(fit4))
+  
+  if(assessment == 'PLIC' | assessment == 'ECLASS'){
+    # E-CLASS and PLIC have mechanics and EM courses
+    dat$Course_Content <- relevel(dat$Course_Content, ref = 'Mechanics')
+    fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + 
+                   PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + 
+                   AP_Calculus_BC + Semester + Sequence + Course_Content + 
+                   (1 | Class_ID), dat, na.action = 'na.fail')
+  } else {
+    # CSEM and MBT have only one or the other
+    fit5 <- lmer(PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + 
+                   PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + 
+                   AP_Calculus_BC + Semester + Sequence + (1 | Class_ID), dat, 
+                 na.action = 'na.fail')
+  }
+  print(summary(fit5))
+  print(r.squaredGLMM(fit5))
+  print(AIC(fit5))
+  
+  # stargazer needs lmerMod class models... this is only a data structure thing and 
+  # doesn't affect estimates or undertainties
+  class(fit0) <- "lmerMod"
+  class(fit1a) <- "lmerMod"
+  class(fit1b) <- "lmerMod"
+  class(fit1c) <- "lmerMod"
+  class(fit1d) <- "lmerMod"
+  class(fit2) <- "lmerMod"
+  class(fit3) <- "lmerMod"
+  class(fit4) <- "lmerMod"
+  class(fit5) <- "lmerMod"
+  
+  stargazer(fit0, fit1a, fit1b, fit1c, fit1d, fit2, fit3, fit4, fit5, 
+            star.cutoffs = c(0.05, 0.01, 0.001), intercept.bottom = FALSE, 
+            out = paste(assessment, '.tex'), intercept.top = TRUE, omit.stat = 'all')
+  
+  # make a nice long format table of coefficients and estimates with model ID
+  Coefs.summary <- rbind(rbind(tidy(fit1a), tidy(fit1b), tidy(fit1c), 
+                               tidy(fit1d)) %>% mutate(Model = 1), 
+                         tidy(fit2) %>% mutate(Model = 2), 
+                         tidy(fit3) %>% mutate(Model = 3), 
+                         tidy(fit5) %>% mutate(Model = 5))
+  
+  return(list("model" = fit5, "dataframe" = dat, 'Coefs' = Coefs.summary))
+}
+```
+
+# Descriptive statistics by assessment
+```{r}
+df = read.csv('OVB_Master.csv')
+
+vars = c("PreScores", "PostScores", "ACT_SAT_Math_Percentile", "Gender", "URM_Status", "Class_Standing", "First_Gen_Status", "AP_Calculus_AB", "AP_Calculus_BC", "Semester", "Sequence", "Course_Content")
+
+CreateTableOne(vars = vars, strata = c("Assessment"), data = df[!is.na(df$PreScores) & !is.na(df$PostScores),])
+```
+
+# Regressions
+
+## CSEM regressions
+```{r, message = FALSE, warning = FALSE}
+df.CSEM <- Load.Clean.Data(assessment = 'CSEM')
+
+df.CSEM.fit5 <- Do.Regressions(df.CSEM, assessment = 'CSEM')
+CSEM.Coefs <- df.CSEM.fit5$Coefs
+
+png('Figures/DiagnosticPlots/CSEM_ResidFitted.png', width = 363, height = 363)
+plot(df.CSEM.fit5$model, xlab = 'Fitted values', ylab = 'Residuals')
+dev.off()
+
+png('Figures/DiagnosticPlots/CSEM_qq.png', width = 363, height = 363)
+qqmath(df.CSEM.fit5$model)
+dev.off()
+
+vif(df.CSEM.fit5$model)
+```
+
+## E-CLASS regressions
+```{r, message = FALSE, warning = FALSE}
+df.ECLASS <- Load.Clean.Data(assessment = 'ECLASS')
+
+df.ECLASS.fit5 <- Do.Regressions(df.ECLASS, assessment = 'ECLASS')
+ECLASS.Coefs <- df.ECLASS.fit5$Coefs
+
+png('Figures/DiagnosticPlots/ECLASS_ResidFitted.png', width = 363, height = 363)
+plot(df.ECLASS.fit5$model, xlab = 'Fitted values', ylab = 'Residuals')
+dev.off()
+
+png('Figures/DiagnosticPlots/ECLASS_qq.png', width = 363, height = 363)
+qqmath(df.ECLASS.fit5$model)
+dev.off()
+
+vif(df.ECLASS.fit5$model)
+```
+
+## MBT regressions
+```{r, message = FALSE, warning = FALSE}
+df.MBT <- Load.Clean.Data(assessment = 'MBT')
+
+df.MBT.fit5 <- Do.Regressions(df.MBT, assessment = 'MBT')
+MBT.Coefs <- df.MBT.fit5$Coefs
+
+png('Figures/DiagnosticPlots/MBT_ResidFitted.png', width = 363, height = 363)
+plot(df.MBT.fit5$model, xlab = 'Fitted values', ylab = 'Residuals')
+dev.off()
+
+png('Figures/DiagnosticPlots/MBT_qq.png', width = 363, height = 363)
+qqmath(df.MBT.fit5$model)
+dev.off()
+
+vif(df.MBT.fit5$model)
+```
+
+## PLIC regressions
+```{r, message = FALSE, warning = FALSE}
+df.PLIC <- Load.Clean.Data(assessment = 'PLIC')
+
+df.PLIC.fit5 <-  Do.Regressions(df.PLIC, assessment = 'PLIC')
+PLIC.Coefs <- df.PLIC.fit5$Coefs
+
+png('Figures/DiagnosticPlots/PLIC_ResidFitted.png', width = 363, height = 363)
+plot(df.PLIC.fit5$model, xlab = 'Fitted values', ylab = 'Residuals')
+dev.off()
+
+png('Figures/DiagnosticPlots/PLIC_qq.png', width = 363, height = 363)
+qqmath(df.PLIC.fit5$model)
+dev.off()
+
+vif(df.PLIC.fit5$model)
+```
+
+# Plot fixed effects across models and asessments
+```{r}
+png("Figures/FixedEffects.png", units = "in", width = 6, height = 5, res = 300)
+
+# combine all assessment data.frames of fixed effects
+Coefs <- rbind(PLIC.Coefs %>% mutate(Assessment = 'PLIC'), 
+               ECLASS.Coefs %>% mutate(Assessment = 'E-CLASS'), 
+               MBT.Coefs %>% mutate(Assessment = 'MBT'), 
+               CSEM.Coefs %>% mutate(Assessment = 'CSEM')) %>%
+  filter(term == 'GenderF' | term == 'URM_StatusURM' | term == 'Class_StandingBFY' | 
+           term == 'First_Gen_StatusFirstGen') %>% # only want demographic terms
+  mutate(Model = as.character(Model),
+         Assessment = factor(Assessment, levels = c('CSEM', 'E-CLASS', 'MBT', 'PLIC')))
+
+ggplot(Coefs, aes(x = Model, y = estimate, group = term, color = term, shape = term)) +
+  geom_point(size = 3) +
+  geom_errorbar(aes(ymin = (estimate - std.error), ymax = (estimate + std.error)), 
+                width = 0.15, size = 1) +
+  geom_line(size = 1) +
+  geom_hline(data = Coefs, aes(yintercept = 0), linetype = 'dashed') +
+  facet_wrap(~ Assessment, scales = "free") + # make 2 x 2 grid of plots
+  theme_classic(base_size = 10) +
+  scale_color_manual(breaks = c('GenderF', 'URM_StatusURM', 'Class_StandingBFY', 
+                                'First_Gen_StatusFirstGen'),
+                     labels = c('Gender', 'URM status', 'Class standing', 
+                                'First-generation status'),
+                     values = c('#e69f00', '#009e74', '#0071b2', '#cc79a7')) +
+  scale_shape_manual(breaks = c('GenderF', 'URM_StatusURM', 'Class_StandingBFY', 
+                                'First_Gen_StatusFirstGen'),
+                     labels = c('Gender', 'URM status', 'Class standing', 
+                                'First-generation status'),
+                     values = c(15, 16, 17, 18)) +
+  theme(legend.title = element_blank(), 
+        legend.position = 'top',
+        legend.text = element_text(size = 10)) +
+  ylab('Coefficient')
+dev.off()
+```
+
+# Monte Carlo power anaylsis
+```{r, message = FALSE, warning = FALSE}
+Do.Simulated.Power <- function(model, var, fixed.eff, eff = -0.2, nsim = 100){
+  # simulate model with coefficent for one demographic variable set equal to -0.2
+  # simulate nsim number of times to determine fraction of times statistically significant
+  # result at $\alpha = 0.05$ is detected --- power
+  fixef(model)[fixed.eff] <- eff
+  pow <- powerSim(model, test = fixed(var), progress = FALSE, nsim = nsim)
+  return(pow)
+}
+
+# only perform power analysis for non-statistically significant results in original fits
+lapply(list(c('Gender', 'GenderF'), c('URM_Status', 'URM_StatusURM'), c('Class_Standing', 'Class_StandingBFY')), function (x) {
+  Do.Simulated.Power(model = df.PLIC.fit5$model, var = x[1], fixed.eff = x[2])
+  })
+
+lapply(list(c('Gender', 'GenderF'), c('URM_Status', 'URM_StatusURM'), c('Class_Standing', 'Class_StandingBFY'), c('First_Gen_Status', 'First_Gen_StatusFirstGen')), function (x) {
+  Do.Simulated.Power(model = df.ECLASS.fit5$model, var = x[1], fixed.eff = x[2])
+  })
+
+lapply(list(c('Gender', 'GenderF'), c('Class_Standing', 'Class_StandingBFY'), c('First_Gen_Status', 'First_Gen_StatusFirstGen')), function (x) {
+  Do.Simulated.Power(model = df.MBT.fit5$model, var = x[1], fixed.eff = x[2])
+  })
+
+lapply(list(c('URM_Status', 'URM_StatusURM'), c('Class_Standing', 'Class_StandingBFY'), c('First_Gen_Status', 'First_Gen_StatusFirstGen')), function (x) {
+  Do.Simulated.Power(model = df.CSEM.fit5$model, var = x[1], fixed.eff = x[2])
+  })
+```
+
+# Analysis of missing data
+
+## Comparison of overall averages in different datasets
+```{r}
+df.master <- fread('OVB_Master.csv')
+
+### Matched ###
+df.master[!is.na(PreScores) & !is.na(PostScores), .(.N,
+                                                    avg.GPA = mean(GPA),
+                                                    stderror.GPA = sd(GPA)/sqrt(.N),
+                                                    avg.pre = mean(PreScores), 
+                                                    sderror.pre = sd(PreScores)/sqrt(.N),
+                                                    avg.post = mean(PostScores), 
+                                                    sderror.post = sd(PostScores)/sqrt(.N)), Assessment]
+
+### Valid Pre ONLY ###
+df.master[!is.na(PreScores) & is.na(PostScores), .(N.pre = .N,
+                                                   avg.GPA = mean(GPA),
+                                                   stderror.GPA = sd(GPA)/sqrt(.N),
+                                                   avg.pre = mean(PreScores),
+                                                   sderror.pre = sd(PreScores)/sqrt(.N)), Assessment]
+
+### Valid Post ONLY ###
+df.master[is.na(PreScores) & !is.na(PostScores), .(N.post = .N,
+                                                   avg.GPA = mean(GPA),
+                                                   stderror.GPA = sd(GPA)/sqrt(.N),
+                                                   avg.post = mean(PostScores),
+                                                   sderror.post = sd(PostScores)/sqrt(.N)), Assessment]
+
+### No Survey ###
+df.master[is.na(PreScores) & is.na(PostScores), .(N.no = .N,
+                                                  avg.GPA = mean(GPA),
+                                                  stderror.GPA = sd(GPA)/sqrt(.N)), Assessment]
+```
+
+## Multiple imputation of missing data
+```{r, message = FALSE, warning = FALSE}
+Impute.Analayze <- function(assessment){
+  # impute data using multiple imputation and pool results using Rubin's rules
+  df.imp <- Load.Clean.Data(assessment = assessment, impute = TRUE)
+  if(assessment == 'ECLASS' | assessment == 'PLIC'){
+    model <- 'PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Semester + Sequence + Course_Content + (1 | Class_ID)'
+  } else {
+    model <- 'PostScores ~ Gender + URM_Status + Class_Standing + First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + AP_Calculus_AB + AP_Calculus_BC + Semester + Sequence + (1 | Class_ID)'
+  }
+  fit <- with(df.imp, lme4::lmer(formula(model))) # perform fit on all imputed datasets
+  print(summary(pool(fit))) # and pool results for coefficients and uncertainties
+  
+  # we do the pooling for fit statistics manually, but still follow Rubin's rules
+  df.complete <- mice::complete(df.imp, "long", include = FALSE)
+  R2M.L <- c()
+  R2C.L <- c()
+  AIC.L <- c()
+  m <- max(df.complete$.imp)
+  for(i in 1:m){
+    model.imputed <- lme4::lmer(formula(model), data = df.complete[which(df.complete$.imp == i),])
+    
+    R2 <- r.squaredGLMM(model.imputed)
+    R2M.L[i] <- R2[1, 'R2m']
+    R2C.L[i] <- R2[1, 'R2c']
+    AIC.L[i] <- AIC(model.imputed)
+  }
+  print(mean(R2M.L))
+  print(sd(R2M.L))
+  print(mean(R2C.L))
+  print(sd(R2C.L))
+  print(mean(AIC.L))
+  print(sd(AIC.L))
+}
+
+Impute.Analayze('MBT')
+Impute.Analayze('CSEM')
+Impute.Analayze('ECLASS')
+Impute.Analayze('PLIC')
+```
+
+# Compare linear mixed models with small number of level-2 samples to OLS
+```{r, message = FALSE, warning = FALSE}
+# used the MBT since that dataset had the fewest number of level-2 samples
+df.MBT.fit5.lm <- lm(PostScores ~ Gender + URM_Status + Class_Standing + 
+                       First_Gen_Status + PreScores + ACT_SAT_Math_Percentile + 
+                       AP_Calculus_AB + AP_Calculus_BC + Semester + Sequence + Class_ID, 
+                     data = df.MBT)
+
+summary(df.MBT.fit5.lm)
+AIC(df.MBT.fit5.lm)
+
+stargazer(df.MBT.fit5$model, df.MBT.fit5.lm, star.cutoffs = c(0.05, 0.01, 0.001), 
+          intercept.bottom = FALSE, out = paste('MBT_LMcomp.tex'), intercept.top = TRUE, 
+          omit.stat = 'all')
+```
+

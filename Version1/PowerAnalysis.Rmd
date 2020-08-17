@@ -1,42 +1,42 @@
-```{r}
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+# Load necessary packages
+```{r, results = 'hide', message = FALSE, warning = FALSE}
 library(pwr)
 library(WebPower)
 library(tidyverse)
 library(reshape2)
 ```
 
-```{r}
-wp.regression(p1 = 13, p2 = 9, f2 = 0.02, alpha = 0.05, power = 0.95)$n
-```
-
-
+# Power as a function of sample size (linear model)
 ```{r}
 power.vec <- seq(0.13, 0.99, 0.01)
 
+# regression parameters based number of control variables and test variables in our # regressions
 wp.regression(p1 = 13, p2 = 9, f2 = 0.02, alpha = 0.05, power = 0.8)
 
 Power.func <- function(effect, power){
+  # compute sample size required for power to measure a given effect at $\alpha = 0.05$ 
+  # significance
   out <- wp.regression(p1 = 13, p2 = 9, f2 = effect, alpha = 0.05, power = power)
   return(out$n)
   }
 
-#wp.regression(p1 = 8, p2 = 2, f2 = 0.02, alpha = 0.05, power = 0.99)
-df <- data.frame(Power = power.vec, N1 = sapply(power.vec, Power.func, effect = 0.02)) %>%#, 
-                 #N2 = sapply(power.vec, Power.func, effect = 0.15),
-                 #N3 = sapply(power.vec, Power.func, effect = 0.35)) %>%
+df <- data.frame(Power = power.vec, N1 = sapply(power.vec, Power.func, effect = 0.02)) %>%
   melt(., id.vars = 'Power')
 
 ggplot(df, aes(x = value, y = Power)) +
-  #geom_point() +
   theme_classic() +
   geom_line(size = 1) +
   labs(x = 'Sample size') +
-  geom_vline(xintercept = df[(df$Power == 0.8) & (df$variable == 'N1'), 'value'], linetype = 3, color = 'black', size = 1)
-
-#p.out <- pwr.f2.test(u = 8, f2 = 0.02, sig.level = 0.05, power = 0.8)
-#p.out$v + p.out$u + 1
+  geom_vline(xintercept = df[(df$Power == 0.8) & (df$variable == 'N1'), 'value'], 
+             linetype = 3, color = 'black', size = 1)
 ```
 
+# Power as a function of sample size (t-test)
 ```{r}
 p.out.t <- pwr.t.test(d = 0.2, sig.level = 0.05, power = 0.95)
 p.out.t

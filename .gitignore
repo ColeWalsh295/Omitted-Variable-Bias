@@ -19,3 +19,5 @@ DiagnosticPlots/PLIC_qq.png
 DiagnosticPlots/PLIC_ResidFitted.png
 *.png
 *.tiff
+.Rhistory
+*.pyc

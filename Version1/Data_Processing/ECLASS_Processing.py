@@ -79,8 +79,9 @@ def MergePrePost(PreFile, PostFile, Course, Semester, Year, OutFileName = None):
     Out_Post = Postdf.loc[~Postdf['V1'].isin(Merged_df['V1_y'])]
     Out_Post.columns = Post_Cols
 
+    Merged_df = pd.concat([Merged_df, Out_Pre, Out_Post]).reset_index(drop = True)
     Merged_df['Q3_3_TEXT'] = Merged_df['Q3_3_TEXT_y'].fillna(Merged_df['Q3_3_TEXT_x'])
-    Merged_df = pd.concat([Merged_df, Out_Pre, Out_Post]).reset_index(drop = True).drop(columns = ['Q3_1_TEXT_x', 'Q3_1_TEXT_y', 'Q3_2_TEXT_x', 'Q3_2_TEXT_y', 'Q3_3_TEXT_x', 'Q3_3_TEXT_y'])
+    Merged_df = Merged_df.drop(columns = ['Q3_1_TEXT_x', 'Q3_1_TEXT_y', 'Q3_2_TEXT_x', 'Q3_2_TEXT_y', 'Q3_3_TEXT_x', 'Q3_3_TEXT_y'])
 
     Merged_df['Course'] = Course
     Merged_df['Semester'] = Semester
