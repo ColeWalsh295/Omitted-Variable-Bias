@@ -142,15 +142,22 @@ ggplot(df, aes(x = x, y = value, color = variable)) +
   #geom_point() +
   theme_classic() +
   geom_line(size = 1) +
-  labs(x = TeX('$\\frac{\\beta_3}{\\beta_1}$'), 
-       y = TeX('Expected relative bias on $\\beta_1$')) +
+  labs(x = TeX('$\\beta_3}$'), 
+       y = TeX('Expected bias on $\\beta_1$')) +
   scale_color_manual(name = 'Correlations', 
-                     labels = list(TeX('$r_{12} \\approx r_{13} = r_{23} = 0.2$'), 
-                                   TeX('$r_{12} = r_{23} = 0.2$, $r_{13} = -0.2$'), 
-                                   TeX('$r_{12} = r_{13} = r_{23} = 0.4$'), 
-                                   TeX('$r_{12} = r_{23} = 0.2$, $r_{13} = 0.6$')), 
-                     values = c('#2271B2', '#359B73', '#F748A5', '#D55E00')) +
-  theme(plot.margin = unit(c(0.5, 1, 0.5, 0.5), 'cm'))
+                     labels = list(TeX('$r_{Major, Pre} = 
+r_{Major, X} =  r_{Pre, X} = 0.2$'), 
+                                   TeX('$r_{Major, Pre} = 
+r_{Pre, X} = 0.2$, $r_{Major, X} = -0.2$'), 
+                                   TeX('$r_{Major, Pre} = 
+r_{Major, X} = r_{Pre, X} = 0.4$'), 
+                                   TeX('$r_{Major, Pre} = 
+r_{Pre, X} = 0.2$, $r_{Major, X} = 0.6$')), 
+                     values = c('#2271B2', '#359B73', '#F748A5', '#D55E00'), 
+                     guide = guide_legend(title = '', nrow = 4)) +
+  theme(text = element_text(size = 16),
+        plot.margin = unit(c(0.5, 1, 0.5, 0.5), 'cm'),
+        legend.position = 'top')
 dev.off()
 
 rev.func <- function(y, r12, r13, r23){
