@@ -137,7 +137,7 @@ df <- data.frame(x = x.vec, small.cors = small.cors, small.cors.opp = small.cors
                  mod.cors = mod.cors, multicol.cors = multicol.cors) %>%
   melt(., id.vars = 'x')
 
-png('Figures/Simulated_OVB.png', height = 363, width = 363)
+png('Figures/analytic.png', height = 363, width = 363)
 ggplot(df, aes(x = x, y = value, color = variable)) +
   #geom_point() +
   theme_classic() +
@@ -145,17 +145,14 @@ ggplot(df, aes(x = x, y = value, color = variable)) +
   labs(x = TeX('$\\beta_3}$'), 
        y = TeX('Expected bias on $\\beta_1$')) +
   scale_color_manual(name = 'Correlations', 
-                     labels = list(TeX('$r_{Major, Pre} = 
-r_{Major, X} =  r_{Pre, X} = 0.2$'), 
-                                   TeX('$r_{Major, Pre} = 
-r_{Pre, X} = 0.2$, $r_{Major, X} = -0.2$'), 
-                                   TeX('$r_{Major, Pre} = 
-r_{Major, X} = r_{Pre, X} = 0.4$'), 
-                                   TeX('$r_{Major, Pre} = 
-r_{Pre, X} = 0.2$, $r_{Major, X} = 0.6$')), 
+                     labels = list(TeX('$r_{12} = r_{13} =  r_{23} = 0.2$'), 
+                                   TeX('$r_{12} = r_{23}$, $r_{13} = -0.2$'), 
+                                   TeX('$r_{12} = r_{13} = r_{23} = 0.4$'), 
+                                   TeX('$r_{12} = r_{23} = 0.2$, 
+                                       $r_{13} = 0.6$')), 
                      values = c('#2271B2', '#359B73', '#F748A5', '#D55E00'), 
-                     guide = guide_legend(title = '', nrow = 4)) +
-  theme(text = element_text(size = 16),
+                     guide = guide_legend(title = '', nrow = 2)) +
+  theme(text = element_text(size = 18),
         plot.margin = unit(c(0.5, 1, 0.5, 0.5), 'cm'),
         legend.position = 'top')
 dev.off()
