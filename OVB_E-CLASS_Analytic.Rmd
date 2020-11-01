@@ -41,7 +41,6 @@ Load.Clean.Data <- function(File = 'OVB_Master.csv', assessment) {
     Semester = relevel(as.factor(Semester), ref = 'FA'),
     Sequence = relevel(as.factor(Sequence), ref = 'Engineering'),
     Instruction = relevel(as.factor(Instruction), ref = 'Old'),
-    IntendedMajor = relevel(as.factor(IntendedMajor), ref = 'EngineeringOrOtherSci'),
     Course_Content = as.factor(Course_Content),
     Class_ID = as.factor(Class_ID),
     ACT_SAT_Math_Percentile = ACT_SAT_Math_Percentile)
@@ -49,6 +48,9 @@ Load.Clean.Data <- function(File = 'OVB_Master.csv', assessment) {
   if(assessment == 'ECLASS'){
     df.assessment$IntendedMajor <- relevel(as.factor(df.assessment$IntendedMajor), 
                                            ref = 'EngineeringOrOtherSci')
+  } else {
+    df.assessment <- df.assessment %>%
+      select(-IntendedMajor)
   }
   return(df.assessment)
 }
@@ -93,7 +95,7 @@ chisq.test(table(df.ECLASS$IntendedMajor, df.ECLASS$URM_Status))
 # unchanged
 mod.ECLASS.1 <- lm(PostScores ~ PreScores + IntendedMajor, df.ECLASS)
 mod.ECLASS.2 <- lm(PostScores ~ PreScores + IntendedMajor + Instruction, df.ECLASS)
-mod.ECLASS.3 <- lm(PostScores ~ PreScores + IntendedMajor + URM_Status, df.ECLASS)
+mod.ECLASS.3 <- lm(PostScores ~ PreScores + Instruction + URM_Status, df.ECLASS)
 
 summary(mod.ECLASS.1)
 beta(mod.ECLASS.1, skip = 'IntendedMajor')
@@ -108,6 +110,50 @@ beta(mod.ECLASS.3, skip = c('IntendedMajor', 'URM_Status'))
 AIC(mod.ECLASS.3)
 ```
 
+# Load PLIC dataset and conduct analyses
+```{r}
+df.PLIC <- Load.Clean.Data(assessment = 'PLIC') %>%
+  select(PostScores, PreScores, Class_Standing, Instruction, Gender)
+
+hetcor(df.PLIC) # correlations of all variables
+
+# check overall averages and whether differences exist in scores
+desc.stats(df.PLIC, 'Class_Standing')
+t.test(PreScores ~ Class_Standing, df.PLIC)
+t.test(PostScores ~ Class_Standing, df.PLIC)
+
+desc.stats(df.PLIC, 'Instruction')
+t.test(PreScores ~ Instruction, df.PLIC)
+t.test(PostScores ~ Instruction, df.PLIC)
+
+desc.stats(df.PLIC, 'Gender')
+t.test(PreScores ~ Gender, df.PLIC)
+t.test(PostScores ~ Gender, df.PLIC)
+
+table(df.PLIC$Class_Standing, df.PLIC$Instruction)
+chisq.test(table(df.PLIC$Class_Standing, df.PLIC$Instruction))
+table(df.PLIC$Instruction, df.PLIC$Gender)
+chisq.test(table(df.PLIC$Instruction, df.PLIC$Gender))
+
+# mod1 -> comparison model, mod2 -> effect of major changes, mod3 -> effect of major 
+# unchanged
+mod.PLIC.1 <- lm(PostScores ~ PreScores + Instruction, df.PLIC)
+mod.PLIC.2 <- lm(PostScores ~ PreScores + Class_Standing + Instruction, df.PLIC)
+mod.PLIC.3 <- lm(PostScores ~ PreScores + Instruction + Gender, df.PLIC)
+
+summary(mod.PLIC.1)
+beta(mod.PLIC.1, skip = 'Instruction')
+AIC(mod.PLIC.1)
+
+summary(mod.PLIC.2)
+beta(mod.PLIC.2, skip = c('Class_Standing', 'Instruction'))
+AIC(mod.PLIC.2)
+
+summary(mod.PLIC.3)
+beta(mod.PLIC.3, skip = c('Instruction', 'Gender'))
+AIC(mod.PLIC.3)
+```
+
 # Analytic OVB solution with two variables
 ```{r}
 # get correlations between E-CLASS variables for comparison
@@ -116,6 +162,7 @@ df.ECLASS$Instruction <- as.numeric(df.ECLASS$Instruction) - 1
 df.ECLASS$URM_Status <- as.numeric(df.ECLASS$URM_Status) - 1
 
 cor(df.ECLASS)
+nrow(df.ECLASS)
 
 func <- function(x, r12, r13, r23){
   # relative bias as a function of correlations between variables and true effect size
